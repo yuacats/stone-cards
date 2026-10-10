@@ -1,5 +1,5 @@
 // 更新したら CACHE の番号を上げてください(v1 → v2 …)
-const CACHE = "stone-cards-v1";
+const CACHE = "stone-cards-v2";
 const ASSETS = [
   "./",
   "./index.html",

@@ -192,11 +192,37 @@ function render(){
   if(editing){renderEditor();return}
   const c=cards.find(x=>x.id===current);
   $("#main").innerHTML=`<div class="bar"><button class="btn" id="imgBtn">画像で保存</button><button class="btn solid" id="editBtn">編集</button></div>
-    ${cardHTML(c)}${hasStore?`<p class="note">この端末に自動保存されます。機種変更に備えて、ときどき「バックアップ」を控えておくと安心です。</p>`:`<p class="note">このブラウザでは保存が使えません。プライベートモードを解除するか、「バックアップ」で内容を控えてください。</p>`}<div class="bar" style="justify-content:center;margin-top:14px"><button class="btn" id="bkBtn">バックアップ</button><button class="btn" id="inBtn">読み込む</button></div>`;
+    ${cardHTML(c)}${hasStore?`<p class="note">この端末に自動保存されます。機種変更に備えて、ときどき「バックアップ」を控えておくと安心です。</p>`:`<p class="note">このブラウザでは保存が使えません。プライベートモードを解除するか、「バックアップ」で内容を控えてください。</p>`}<div class="bar" style="justify-content:center;margin-top:14px;flex-wrap:wrap"><button class="btn" id="exBtn">iCloudに書き出す</button><label class="btn">iCloudから読み込む<input type="file" accept=".json,application/json" id="fileIn" hidden></label></div><p class="note"><button class="x" style="font-size:12px;text-decoration:underline" id="bkBtn">文字でバックアップ</button><button class="x" style="font-size:12px;text-decoration:underline" id="inBtn">文字から読み込む</button></p>`;
   $("#editBtn").onclick=()=>{editing=structuredClone(c);render()};
   $("#imgBtn").onclick=saveImage;
   $("#bkBtn").onclick=showBackup;
   $("#inBtn").onclick=showImport;
+  $("#exBtn").onclick=exportFile;
+  $("#fileIn").onchange=ev=>{const f=ev.target.files[0];if(f)importFile(f)};
+}
+function stamp(){const d=new Date(),z=n=>String(n).padStart(2,"0");return `${d.getFullYear()}${z(d.getMonth()+1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}`}
+async function exportFile(){
+  const json=JSON.stringify({v:1,saved:new Date().toISOString(),cards},null,1);
+  const name=`stone-cards-${stamp()}.json`;
+  const file=new File([json],name,{type:"application/json"});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file]});toast("「ファイルに保存」からiCloud Driveを選んでください");return}
+    catch(e){if(e.name==="AbortError")return}
+  }
+  const a=document.createElement("a");a.href=URL.createObjectURL(file);a.download=name;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast("書き出しました");
+}
+function importFile(f){
+  const r=new FileReader();
+  r.onload=async()=>{
+    try{
+      const d=JSON.parse(r.result);if(!Array.isArray(d.cards)||!d.cards.length)throw 0;
+      if(!confirm(`${d.cards.length}枚のカードを読み込みます。同じ石のカードは読み込んだ内容で上書きされます。`))return;
+      for(const c of d.cards){const i=cards.findIndex(x=>x.id===c.id);if(i>=0)cards[i]=c;else cards.push(c)}
+      current=d.cards[0].id;editing=null;await saveAll();render();toast("読み込みました");
+    }catch(e){toast("読み込めませんでした。書き出したjsonファイルを選んでください")}
+  };
+  r.readAsText(f);
 }
 function showBackup(){
   const data=JSON.stringify({v:1,cards});
